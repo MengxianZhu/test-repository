@@ -1,53 +1,59 @@
-#!/bin/bash
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 
-# 定义要构建的服务名称，按照您的实际情况进行调整
-SERVICES=("ServiceA" "ServiceB" "ServiceC")
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
-# 获取项目根目录的绝对路径
-PROJECT_DIR=$(dirname $(cd "$(dirname "$0")"; pwd))
+public class CsvToExcelWithColor {
 
-# 循环遍历每个服务，并执行 mvn clean install
-for SERVICE in "${SERVICES[@]}"
-do
-    SERVICE_DIR="$PROJECT_DIR/$SERVICE"
-    
-    if [ -d "$SERVICE_DIR" ]; then
-        echo "Building $SERVICE..."
-        cd "$SERVICE_DIR" # 进入相应的Service目录
-        mvn clean install
-        cd "$PROJECT_DIR" # 返回到项目根目录
-        echo "Built $SERVICE successfully."
-    else
-        echo "Error: Directory for $SERVICE not found!"
-    fi
-done
+    public static void main(String[] args) {
+        String csvFilePath = "input.csv";
+        String excelFilePath = "output.xlsx";
 
-echo "All services are built successfully."
-
-
- public static void main(String[] args) {
-        String filePath = "path/to/your/excel-file.xlsx";
-        ExcelReader reader = ExcelUtil.getReader(filePath);
-
-        // Get the header row to map column names to their indexes
-        List<Object> headerRow = reader.readRow(0);
-
-        // Create a map to store column name to index mappings
-        Map<String, Integer> columnIndexMap = new HashMap<>();
-        for (int i = 0; i < headerRow.size(); i++) {
-            String columnName = headerRow.get(i).toString();
-            columnIndexMap.put(columnName, i);
-        }
-
-        // Read data by column names
-        List<List<Object>> dataList = reader.read(1, Integer.MAX_VALUE); // Skip the header row
-
-        for (List<Object> row : dataList) {
-            // Access data by column name
-            String column1Value = row.get(columnIndexMap.get("Column1")).toString();
-            String column2Value = row.get(columnIndexMap.get("Column2")).toString();
-            System.out.println("Column1: " + column1Value + ", Column2: " + column2Value);
-        }
-
-        reader.close();
+        convertCsvToExcelWithColor(csvFilePath, excelFilePath);
     }
+
+    public static void convertCsvToExcelWithColor(String csvFilePath, String excelFilePath) {
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fileOut = new FileOutputStream(excelFilePath);
+             Reader reader = new FileReader(csvFilePath);
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader())) {
+
+            Sheet sheet = workbook.createSheet("Sheet1");
+            CellStyle greenStyle = createGreenCellStyle(workbook);
+
+            int rowNum = 0;
+            for (CSVRecord csvRecord : csvParser) {
+                Row row = sheet.createRow(rowNum++);
+                int colNum = 0;
+                for (String header : csvParser.getHeaderMap().keySet()) {
+                    String value = csvRecord.get(header).trim();
+                    Cell cell = row.createCell(colNum++);
+                    cell.setCellValue(value);
+
+                    // 如果值为空，设置绿色背景
+                    if (value.isEmpty()) {
+                        cell.setCellStyle(greenStyle);
+                    }
+                }
+            }
+
+            workbook.write(fileOut);
+            System.out.println("Excel file created successfully!");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static CellStyle createGreenCellStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+}

@@ -6,39 +6,45 @@ import org.apache.commons.csv.CSVRecord;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-public class CsvToExcelWithColor {
+public class CsvToExcelWithDefaultValues {
 
     public static void main(String[] args) {
         String csvFilePath = "input.csv";
         String excelFilePath = "output.xlsx";
 
-        convertCsvToExcelWithColor(csvFilePath, excelFilePath);
+        convertCsvToExcelWithDefaultValues(csvFilePath, excelFilePath);
     }
 
-    public static void convertCsvToExcelWithColor(String csvFilePath, String excelFilePath) {
+    public static void convertCsvToExcelWithDefaultValues(String csvFilePath, String excelFilePath) {
         try (Workbook workbook = new XSSFWorkbook();
              FileOutputStream fileOut = new FileOutputStream(excelFilePath);
              Reader reader = new FileReader(csvFilePath);
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader())) {
+             CSVParser csvParser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
 
             Sheet sheet = workbook.createSheet("Sheet1");
-            CellStyle greenStyle = createGreenCellStyle(workbook);
 
-            int rowNum = 0;
+            // 指定所有标题的顺序
+            List<String> allHeaders = Arrays.asList("Name", "Age", "Salary", "Position", "Sex");
+
+            // 创建标题行并设置默认值
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < allHeaders.size(); i++) {
+                headerRow.createCell(i).setCellValue(allHeaders.get(i));
+            }
+
+            // 写入CSV数据到Excel中
+            int rowNum = 1;
             for (CSVRecord csvRecord : csvParser) {
                 Row row = sheet.createRow(rowNum++);
-                int colNum = 0;
-                for (String header : csvParser.getHeaderMap().keySet()) {
-                    String value = csvRecord.get(header).trim();
-                    Cell cell = row.createCell(colNum++);
-                    cell.setCellValue(value);
-
-                    // 如果值为空，设置绿色背景
-                    if (value.isEmpty()) {
-                        cell.setCellStyle(greenStyle);
+                for (int i = 0; i < allHeaders.size(); i++) {
+                    String value = "";
+                    if (csvRecord.isMapped(allHeaders.get(i))) {
+                        value = csvRecord.get(allHeaders.get(i)).trim();
                     }
+                    row.createCell(i).setCellValue(value);
                 }
             }
 
@@ -48,12 +54,5 @@ public class CsvToExcelWithColor {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static CellStyle createGreenCellStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
     }
 }

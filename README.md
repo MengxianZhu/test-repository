@@ -1,37 +1,31 @@
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
+public class CsvToXlsxConverter {
 
-import java.io.*;
-import java.util.Arrays;
-import java.util.List;
-
-public class CsvToExcelWithColorIfEmpty {
+    private static final String INPUT_FOLDER = "input_folder";
+    private static final String OUTPUT_FOLDER = "output_folder";
 
     public static void main(String[] args) {
-        String csvFilePath = "input.csv";
-        String excelFilePath = "output.xlsx";
+        File inputDirectory = new File(INPUT_FOLDER);
+        File outputDirectory = new File(OUTPUT_FOLDER);
 
-        convertCsvToExcelWithColorIfEmpty(csvFilePath, excelFilePath);
+        // 创建输出目录
+        outputDirectory.mkdirs();
+
+        // 获取输入目录下的所有CSV文件
+        File[] csvFiles = inputDirectory.listFiles((dir, name) -> name.toLowerCase().endsWith(".csv"));
+
+        // 转换每个CSV文件为XLSX格式
+        if (csvFiles != null) {
+            for (File csvFile : csvFiles) {
+                String outputFileName = OUTPUT_FOLDER + File.separator + csvFile.getName().replace(".csv", ".xlsx");
+                try {
+                    convertCsvToXlsx(csvFile.getPath(), outputFileName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
-
-    public static void convertCsvToExcelWithColorIfEmpty(String csvFilePath, String excelFilePath) {
-        try (Workbook workbook = new XSSFWorkbook();
-             FileOutputStream fileOut = new FileOutputStream(excelFilePath);
-             Reader reader = new FileReader(csvFilePath);
-             CSVParser csvParser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
-
-            Sheet sheet = workbook.createSheet("Sheet1");
-
-            // 指定所有标题的顺序
-            List<String> allHeaders = Arrays.asList("Name", "Age", "Salary", "Position", "Sex");
-
-            // 创建标题行
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < allHeaders.size(); i++) {
-                headerRow.createCell(i).setCellValue(allHeaders.get(i));
+;
             }
 
             // 写入CSV数据到Excel中

@@ -22,7 +22,7 @@ public class ExcelProcessor {
             int ageIndex = -1;
             int sexIndex = -1;
             for (Cell cell : headerRow) {
-                String headerName = cell.getStringCellValue().trim(); // Trim the header name
+                String headerName = cell.getStringCellValue();
                 switch (headerName) {
                     case "name":
                         nameIndex = cell.getColumnIndex();

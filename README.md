@@ -1,5 +1,6 @@
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CSVProcessor {
@@ -47,21 +48,22 @@ public class CSVProcessor {
 
             // Process header
             String[] header = records.get(0);
+            List<Integer> preservedIndexes = new ArrayList<>();
             for (int i = 0; i < header.length; i++) {
                 header[i] = header[i].trim().toUpperCase();
-                if ("PRA".equals(header[i])) {
-                    header[i] = "PRO";
-                }
+                preservedIndexes.add(i);
             }
-            int formatIndex = findIndex(header, "FORMAT");
-            int proIndex = findIndex(header, "PRO");
-            int cdIndex = findIndex(header, "CD");
-            int isDIndex = findIndex(header, "ISD");
-            int sourceIndex = findIndex(header, "SOURCE");
 
             // Process data rows
             for (int i = 1; i < records.size(); i++) {
                 String[] data = records.get(i);
+
+                // Your existing processing logic
+                int formatIndex = findIndex(header, "FORMAT");
+                int proIndex = findIndex(header, "PRO");
+                int cdIndex = findIndex(header, "CD");
+                int isDIndex = findIndex(header, "ISD");
+                int sourceIndex = findIndex(header, "SOURCE");
 
                 // Process format
                 if (formatIndex != -1 && "-".equals(data[formatIndex])) {
@@ -89,6 +91,13 @@ public class CSVProcessor {
                 // Process Source
                 if (sourceIndex != -1 && ("NA".equals(data[sourceIndex]) || "--NA--".equals(data[sourceIndex]))) {
                     data[sourceIndex] = "";
+                }
+
+                // Process preserved headers
+                for (int index : preservedIndexes) {
+                    if (index < data.length) {
+                        data[index] = data[index].trim();
+                    }
                 }
             }
 

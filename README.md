@@ -1,141 +1,141 @@
-java
-Copy code
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
-public class ExcelProcessor {
-
+public class CSVProcessor {
     public static void main(String[] args) {
-        String inputFile = "input.xlsx";
+        String sourceDirectory = "source_directory_path";
+        String destinationDirectory = "destination_directory_path";
 
-        try {
-            // Load the input Excel file
-            FileInputStream inputStream = new FileInputStream(inputFile);
-            Workbook workbook = new XSSFWorkbook(inputStream);
-            Sheet sheet = workbook.getSheetAt(0);
+        processCSVs(sourceDirectory, destinationDirectory);
+    }
 
-            // Process the header row
-            Row headerRow = sheet.getRow(0); // Header row is at index 0
-            int nameIndex = -1;
-            int ageIndex = -1;
-            int sexIndex = -1;
-            int orderIndex = -1;
-            int dateIndex = -1;
-            int typeIndex = -1;
-            int formatIndex = -1;
-            for (Cell cell : headerRow) {
-                String headerName = cell.getStringCellValue().trim(); // Trim the header name
-                switch (headerName) {
-                    case "name":
-                        nameIndex = cell.getColumnIndex();
-                        break;
-                    case "age":
-                        ageIndex = cell.getColumnIndex();
-                        break;
-                    case "sex":
-                        sexIndex = cell.getColumnIndex();
-                        break;
-                    case "order":
-                        orderIndex = cell.getColumnIndex();
-                        break;
-                    case "date":
-                        dateIndex = cell.getColumnIndex();
-                        break;
-                    case "type":
-                        typeIndex = cell.getColumnIndex();
-                        break;
-                    case "format":
-                        formatIndex = cell.getColumnIndex();
-                        break;
+    public static void processCSVs(String sourceDir, String destinationDir) {
+        File sourceFolder = new File(sourceDir);
+        File destinationFolder = new File(destinationDir);
+
+        if (!sourceFolder.exists() || !sourceFolder.isDirectory()) {
+            System.err.println("Source directory does not exist or is not a directory.");
+            return;
+        }
+
+        if (!destinationFolder.exists() && !destinationFolder.mkdirs()) {
+            System.err.println("Failed to create destination directory.");
+            return;
+        }
+
+        File[] files = sourceFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".csv"));
+        if (files == null || files.length == 0) {
+            System.out.println("No CSV files found in the source directory.");
+            return;
+        }
+
+        for (File file : files) {
+            processCSV(file, destinationDir);
+        }
+
+        System.out.println("CSV processing completed.");
+    }
+
+    public static void processCSV(File inputFile, String destinationDir) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile))) {
+            List<String[]> records = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                records.add(line.split(","));
+            }
+
+            // Process header
+            String[] header = records.get(0);
+            for (int i = 0; i < header.length; i++) {
+                header[i] = header[i].trim().toUpperCase();
+                if ("PRA".equals(header[i])) {
+                    header[i] = "PRO";
                 }
             }
+            int formatIndex = findIndex(header, "FORMAT");
+            int proIndex = findIndex(header, "PRO");
+            int cdIndex = findIndex(header, "CD");
+            int isDIndex = findIndex(header, "ISD");
+            int sourceIndex = findIndex(header, "SOURCE");
 
             // Process data rows
-            int expectedOrder = 1;
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) { // Data starts from the second row
-                Row row = sheet.getRow(i);
-                // Check name field
-                Cell nameCell = row.getCell(nameIndex);
-                if (nameCell == null || nameCell.getCellType() == CellType.BLANK) {
-                    setCellStyle(nameCell, getGrayCellStyle(workbook));
+            for (int i = 1; i < records.size(); i++) {
+                String[] data = records.get(i);
+
+                // Process format
+                if (formatIndex != -1 && "-".equals(data[formatIndex])) {
+                    data[formatIndex] = "";
                 }
-                // Check age field
-                Cell ageCell = row.getCell(ageIndex);
-                if (ageCell == null || ageCell.getCellType() == CellType.BLANK || !isValidAge(ageCell)) {
-                    setCellStyle(ageCell, getYellowCellStyle(workbook));
-                }
-                // Check sex field
-                Cell sexCell = row.getCell(sexIndex);
-                if (sexCell != null && sexCell.getCellType() == CellType.STRING && sexCell.getStringCellValue().toLowerCase().contains("na")) {
-                    sexCell.setCellValue(""); // Replace with empty string
-                }
-                // Check order field
-                Cell orderCell = row.getCell(orderIndex);
-                if (orderCell != null && orderCell.getCellType() == CellType.NUMERIC) {
-                    int currentOrder = (int) orderCell.getNumericCellValue();
-                    if (currentOrder != expectedOrder) {
-                        orderCell.setCellValue(expectedOrder); // Correct the order
+
+                // Process PRO
+                if (proIndex != -1) {
+                    if ("".equals(data[proIndex])) {
+                        data[proIndex] = findValue(data, proIndex, "PRO");
                     }
-                    expectedOrder++;
-                }
-                // Check date field format
-                Cell typeCell = row.getCell(typeIndex);
-                Cell formatCell = row.getCell(formatIndex);
-                if (typeCell != null && formatCell != null &&
-                        typeCell.getCellType() == CellType.STRING && formatCell.getCellType() == CellType.BLANK) {
-                    String fieldType = typeCell.getStringCellValue().trim();
-                    if ("date".equals(fieldType.toLowerCase())) {
-                        setCellStyle(formatCell, getRedCellStyle(workbook)); // Mark red if the format is empty for date type
+                } else { // If proIndex is -1, meaning no "PRO" column, check for "PRA" column
+                    proIndex = findIndex(header, "PRA");
+                    if (proIndex != -1) {
+                        if ("".equals(data[proIndex])) {
+                            data[proIndex] = findValue(data, proIndex, "PRA");
+                        }
                     }
+                }
+
+                // Process CD, IsD
+                processYNValues(cdIndex, data);
+                processYNValues(isDIndex, data);
+
+                // Process Source
+                if (sourceIndex != -1 && ("NA".equals(data[sourceIndex]) || "--NA--".equals(data[sourceIndex]))) {
+                    data[sourceIndex] = "";
                 }
             }
 
-            // Write changes to the input Excel file
-            FileOutputStream outputStream = new FileOutputStream(inputFile);
-            workbook.write(outputStream);
-            workbook.close();
-            inputStream.close();
-            outputStream.close();
-
-            System.out.println("Processing completed.");
+            // Write to new CSV
+            String destinationFilePath = destinationDir + File.separator + inputFile.getName();
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(destinationFilePath))) {
+                writeCSV(writer, records);
+            }
+            System.out.println("Processed: " + inputFile.getName());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static boolean isValidAge(Cell ageCell) {
-        String ageValue = ageCell.getStringCellValue();
-        return "30".equals(ageValue) || "40".equals(ageValue) || "50".equals(ageValue);
-    }
-
-    private static CellStyle getGrayCellStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
-
-    private static CellStyle getYellowCellStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
-
-    private static CellStyle getRedCellStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.RED.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        return style;
-    }
-
-    private static void setCellStyle(Cell cell, CellStyle style) {
-        if (cell != null) {
-            cell.setCellStyle(style);
+    private static void writeCSV(BufferedWriter writer, List<String[]> records) throws IOException {
+        for (String[] record : records) {
+            writer.write(String.join(",", record));
+            writer.newLine();
         }
+    }
+
+    private static int findIndex(String[] header, String columnName) {
+        for (int i = 0; i < header.length; i++) {
+            if (columnName.equalsIgnoreCase(header[i])) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static void processYNValues(int index, String[] data) {
+        if (index != -1 && ("".equals(data[index]) || !"Y".equals(data[index].toUpperCase()))) {
+            data[index] = "N";
+        }
+    }
+
+    private static String findValue(String[] data, int proIndex, String columnName) {
+        int index = -1;
+        for (int i = 0; i < data.length; i++) {
+            if (columnName.equalsIgnoreCase(data[i])) {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1 && !"Y".equalsIgnoreCase(data[index].trim())) {
+            return "N";
+        }
+        return data[proIndex];
     }
 }

@@ -1,7 +1,10 @@
+import org.apache.commons.csv.*;
+
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class CSVProcessor {
     public static void main(String[] args) {
@@ -39,112 +42,75 @@ public class CSVProcessor {
     }
 
     public static void processCSV(File inputFile, String destinationDir) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile))) {
-            List<String[]> records = new ArrayList<>();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                records.add(line.split(","));
-            }
+        try (Reader reader = Files.newBufferedReader(Paths.get(inputFile.getPath()), StandardCharsets.UTF_8);
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+
+            List<CSVRecord> records = csvParser.getRecords();
 
             // Process header
-            String[] header = records.get(0);
-            List<Integer> preservedIndexes = new ArrayList<>();
-            for (int i = 0; i < header.length; i++) {
-                header[i] = header[i].trim().toUpperCase();
-                preservedIndexes.add(i);
+            CSVRecord header = records.get(0);
+            List<String> headerNames = new ArrayList<>();
+            for (int i = 0; i < header.size(); i++) {
+                headerNames.add(header.get(i).trim().toUpperCase());
             }
 
             // Process data rows
             for (int i = 1; i < records.size(); i++) {
-                String[] data = records.get(i);
+                CSVRecord record = records.get(i);
 
-                // Your existing processing logic
-                int formatIndex = findIndex(header, "FORMAT");
-                int proIndex = findIndex(header, "PRO");
-                int cdIndex = findIndex(header, "CD");
-                int isDIndex = findIndex(header, "ISD");
-                int sourceIndex = findIndex(header, "SOURCE");
-
-                // Process format
-                if (formatIndex != -1 && "-".equals(data[formatIndex])) {
-                    data[formatIndex] = "";
+                // Process ISD column
+                int isdIndex = getIndexForHeader("ISD", headerNames);
+                if (isdIndex != -1 && isdIndex < record.size() && record.get(isdIndex).trim().isEmpty()) {
+                    record = setRecordValue(record, isdIndex, "N");
                 }
 
-                // Process PRO
-                if (proIndex != -1) {
-                    if ("".equals(data[proIndex])) {
-                        data[proIndex] = findValue(data, proIndex, "PRO");
-                    }
-                } else { // If proIndex is -1, meaning no "PRO" column, check for "PRA" column
-                    proIndex = findIndex(header, "PRA");
-                    if (proIndex != -1) {
-                        if ("".equals(data[proIndex])) {
-                            data[proIndex] = findValue(data, proIndex, "PRA");
-                        }
-                    }
-                }
+                // Process other headers as needed...
 
-                // Process CD, IsD
-                processYNValues(cdIndex, data);
-                processYNValues(isDIndex, data);
-
-                // Process Source
-                if (sourceIndex != -1 && ("NA".equals(data[sourceIndex]) || "--NA--".equals(data[sourceIndex]))) {
-                    data[sourceIndex] = "";
-                }
-
-                // Process preserved headers
-                for (int index : preservedIndexes) {
-                    if (index < data.length) {
-                        data[index] = data[index].trim();
-                    }
+                // Ensure that the record has the same number of columns as the header
+                if (record.size() < headerNames.size()) {
+                    record = padRecord(record, headerNames.size());
                 }
             }
 
             // Write to new CSV
             String destinationFilePath = destinationDir + File.separator + inputFile.getName();
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(destinationFilePath))) {
-                writeCSV(writer, records);
+            try (Writer writer = Files.newBufferedWriter(Paths.get(destinationFilePath), StandardCharsets.UTF_8);
+                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerNames.toArray(String[]::new)))) {
+
+                for (CSVRecord record : records) {
+                    csvPrinter.printRecord(record);
+                }
+                csvPrinter.flush();
             }
+
             System.out.println("Processed: " + inputFile.getName());
-        } catch (IOException e) {
+        } catch (IOException | CsvValidationException e) {
             e.printStackTrace();
         }
     }
 
-    private static void writeCSV(BufferedWriter writer, List<String[]> records) throws IOException {
-        for (String[] record : records) {
-            writer.write(String.join(",", record));
-            writer.newLine();
+    private static CSVRecord setRecordValue(CSVRecord record, int index, String value) {
+        List<String> values = new ArrayList<>();
+        for (int i = 0; i < record.size(); i++) {
+            values.add(i == index ? value : record.get(i));
         }
+        return CSVRecord.of(values);
     }
 
-    private static int findIndex(String[] header, String columnName) {
-        for (int i = 0; i < header.length; i++) {
-            if (columnName.equalsIgnoreCase(header[i])) {
+    private static CSVRecord padRecord(CSVRecord record, int size) {
+        List<String> values = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            values.add(i < record.size() ? record.get(i) : "");
+        }
+        return CSVRecord.of(values);
+    }
+
+    private static int getIndexForHeader(String headerName, List<String> header) {
+        for (int i = 0; i < header.size(); i++) {
+            if (header.get(i).equalsIgnoreCase(headerName)) {
                 return i;
             }
         }
         return -1;
-    }
-
-    private static void processYNValues(int index, String[] data) {
-        if (index != -1 && ("".equals(data[index]) || !"Y".equals(data[index].toUpperCase()))) {
-            data[index] = "N";
-        }
-    }
-
-    private static String findValue(String[] data, int proIndex, String columnName) {
-        int index = -1;
-        for (int i = 0; i < data.length; i++) {
-            if (columnName.equalsIgnoreCase(data[i])) {
-                index = i;
-                break;
-            }
-        }
-        if (index != -1 && !"Y".equalsIgnoreCase(data[index].trim())) {
-            return "N";
-        }
-        return data[proIndex];
     }
 }

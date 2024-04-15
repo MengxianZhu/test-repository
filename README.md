@@ -1,3 +1,4 @@
+
 import org.apache.commons.csv.*;
 
 import java.io.*;
@@ -61,7 +62,7 @@ public class CSVProcessor {
                 // Process ISD column
                 int isdIndex = getIndexForHeader("ISD", headerNames);
                 if (isdIndex != -1 && isdIndex < record.size() && record.get(isdIndex).trim().isEmpty()) {
-                    record = setRecordValue(record, isdIndex, "N");
+                    record = setRecordValue(record, isdIndex, "N", headerNames.size());
                 }
 
                 // Process other headers as needed...
@@ -89,20 +90,23 @@ public class CSVProcessor {
         }
     }
 
-    private static CSVRecord setRecordValue(CSVRecord record, int index, String value) {
-        List<String> values = new ArrayList<>();
+    private static CSVRecord setRecordValue(CSVRecord record, int index, String value, int size) {
+        List<String> values = new ArrayList<>(size);
         for (int i = 0; i < record.size(); i++) {
             values.add(i == index ? value : record.get(i));
         }
-        return CSVRecord.of(values);
+        for (int i = record.size(); i < size; i++) {
+            values.add("");
+        }
+        return new CSVRecord(record.toMap(), values);
     }
 
     private static CSVRecord padRecord(CSVRecord record, int size) {
-        List<String> values = new ArrayList<>();
+        List<String> values = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             values.add(i < record.size() ? record.get(i) : "");
         }
-        return CSVRecord.of(values);
+        return new CSVRecord(record.toMap(), values);
     }
 
     private static int getIndexForHeader(String headerName, List<String> header) {

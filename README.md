@@ -43,83 +43,50 @@ public class CSVProcessor {
 
     public static void processCSV(File inputFile, String destinationDir) {
         try (Reader reader = Files.newBufferedReader(Paths.get(inputFile.getPath()), StandardCharsets.UTF_8);
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader());
+             FileWriter writer = new FileWriter(destinationDir + File.separator + inputFile.getName());
+             CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 
-            List<CSVRecord> records = csvParser.getRecords();
-
-            // Process header
-            CSVRecord header = records.get(0);
-            List<String> headerNames = new ArrayList<>();
-            for (int i = 0; i < header.size(); i++) {
-                headerNames.add(header.get(i).trim().toUpperCase());
-            }
+            // Write header
+            List<String> headerNames = new ArrayList<>(csvParser.getHeaderMap().keySet());
+            csvPrinter.printRecord(headerNames);
 
             // Process data rows
-            for (int i = 1; i < records.size(); i++) {
-                CSVRecord record = records.get(i);
+            for (CSVRecord record : csvParser) {
+                List<String> values = new ArrayList<>();
+                for (String header : headerNames) {
+                    String value = record.get(header);
 
-                // Process ISD column
-                int isdIndex = getIndexForHeader("ISD", headerNames);
-                if (isdIndex != -1 && isdIndex < record.size() && record.get(isdIndex).trim().isEmpty()) {
-                    record = setRecordValue(record, isdIndex, "N", headerNames);
-                }
+                    // Process specific headers
+                    switch (header.toUpperCase()) {
+                        case "FORMAT":
+                            value = "-".equals(value) ? "" : value;
+                            break;
+                        case "PRO":
+                            if (value.isEmpty() && !csvParser.getHeaderMap().containsKey("PRO")) {
+                                value = record.get("PRA");
+                            }
+                            break;
+                        case "CD":
+                        case "ISD":
+                            value = value.isEmpty() ? "N" : value;
+                            break;
+                        case "SOURCE":
+                            value = "NA".equals(value) || "--NA--".equals(value) ? "" : value;
+                            break;
+                        // Add additional header processing here if needed
+                    }
 
-                // Ensure that the record has the same number of columns as the header
-                if (record.size() < headerNames.size()) {
-                    record = padRecord(record, headerNames.size(), headerNames);
+                    values.add(value);
                 }
+                csvPrinter.printRecord(values);
             }
 
-            // Write to new CSV
-            String destinationFilePath = destinationDir + File.separator + inputFile.getName();
-            try (Writer writer = Files.newBufferedWriter(Paths.get(destinationFilePath), StandardCharsets.UTF_8);
-                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headerNames.toArray(String[]::new)))) {
-
-                for (CSVRecord record : records) {
-                    csvPrinter.printRecord(record);
-                }
-                csvPrinter.flush();
-            }
+            csvPrinter.flush();
 
             System.out.println("Processed: " + inputFile.getName());
         } catch (IOException | CsvValidationException e) {
             e.printStackTrace();
         }
-    }
-
-    private static CSVRecord setRecordValue(CSVRecord record, int index, String value, List<String> headerNames) {
-        List<String> values = new ArrayList<>(record.size());
-        for (int i = 0; i < record.size(); i++) {
-            values.add(i == index ? value : record.get(i));
-        }
-        for (int i = record.size(); i < headerNames.size(); i++) {
-            values.add("");
-        }
-        Map<String, Integer> headerIndexMap = new HashMap<>();
-        for (int i = 0; i < headerNames.size(); i++) {
-            headerIndexMap.put(headerNames.get(i), i);
-        }
-        return new CSVRecord(headerNames, headerIndexMap, Collections.emptyMap(), -1, -1, values);
-    }
-
-    private static CSVRecord padRecord(CSVRecord record, int size, List<String> headerNames) {
-        List<String> values = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            values.add(i < record.size() ? record.get(i) : "");
-        }
-        Map<String, Integer> headerIndexMap = new HashMap<>();
-        for (int i = 0; i < headerNames.size(); i++) {
-            headerIndexMap.put(headerNames.get(i), i);
-        }
-        return new CSVRecord(headerNames, headerIndexMap, Collections.emptyMap(), -1, -1, values);
-    }
-
-    private static int getIndexForHeader(String headerName, List<String> header) {
-        for (int i = 0; i < header.size(); i++) {
-            if (header.get(i).equalsIgnoreCase(headerName)) {
-                return i;
-            }
-        }
-        return -1;
     }
 }

@@ -49,7 +49,10 @@ public class CSVProcessor {
 
             // Process header
             CSVRecord header = records.get(0);
-            List<String> headerNames = header.stream().map(String::trim).map(String::toUpperCase).toList();
+            List<String> headerNames = new ArrayList<>();
+            for (int i = 0; i < header.size(); i++) {
+                headerNames.add(header.get(i).trim().toUpperCase());
+            }
 
             // Process data rows
             for (int i = 1; i < records.size(); i++) {
@@ -58,7 +61,6 @@ public class CSVProcessor {
                 // Process ISD column
                 int isdIndex = getIndexForHeader("ISD", headerNames);
                 if (isdIndex != -1 && isdIndex < record.size() && record.get(isdIndex).trim().isEmpty()) {
-                    // If ISD column is empty, set it to "N"
                     record = setRecordValue(record, isdIndex, "N");
                 }
 
@@ -88,7 +90,7 @@ public class CSVProcessor {
     }
 
     private static CSVRecord setRecordValue(CSVRecord record, int index, String value) {
-        List<String> values = new ArrayList<>(record.size());
+        List<String> values = new ArrayList<>();
         for (int i = 0; i < record.size(); i++) {
             values.add(i == index ? value : record.get(i));
         }
@@ -96,7 +98,7 @@ public class CSVProcessor {
     }
 
     private static CSVRecord padRecord(CSVRecord record, int size) {
-        List<String> values = new ArrayList<>(size);
+        List<String> values = new ArrayList<>();
         for (int i = 0; i < size; i++) {
             values.add(i < record.size() ? record.get(i) : "");
         }

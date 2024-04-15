@@ -1,4 +1,3 @@
-
 import org.apache.commons.csv.*;
 
 import java.io.*;
@@ -62,14 +61,12 @@ public class CSVProcessor {
                 // Process ISD column
                 int isdIndex = getIndexForHeader("ISD", headerNames);
                 if (isdIndex != -1 && isdIndex < record.size() && record.get(isdIndex).trim().isEmpty()) {
-                    record = setRecordValue(record, isdIndex, "N", headerNames.size());
+                    record = setRecordValue(record, isdIndex, "N", headerNames);
                 }
-
-                // Process other headers as needed...
 
                 // Ensure that the record has the same number of columns as the header
                 if (record.size() < headerNames.size()) {
-                    record = padRecord(record, headerNames.size());
+                    record = padRecord(record, headerNames.size(), headerNames);
                 }
             }
 
@@ -90,23 +87,31 @@ public class CSVProcessor {
         }
     }
 
-    private static CSVRecord setRecordValue(CSVRecord record, int index, String value, int size) {
-        List<String> values = new ArrayList<>(size);
+    private static CSVRecord setRecordValue(CSVRecord record, int index, String value, List<String> headerNames) {
+        List<String> values = new ArrayList<>(record.size());
         for (int i = 0; i < record.size(); i++) {
             values.add(i == index ? value : record.get(i));
         }
-        for (int i = record.size(); i < size; i++) {
+        for (int i = record.size(); i < headerNames.size(); i++) {
             values.add("");
         }
-        return new CSVRecord(record.toMap(), values);
+        Map<String, Integer> headerIndexMap = new HashMap<>();
+        for (int i = 0; i < headerNames.size(); i++) {
+            headerIndexMap.put(headerNames.get(i), i);
+        }
+        return new CSVRecord(headerNames, headerIndexMap, Collections.emptyMap(), -1, -1, values);
     }
 
-    private static CSVRecord padRecord(CSVRecord record, int size) {
+    private static CSVRecord padRecord(CSVRecord record, int size, List<String> headerNames) {
         List<String> values = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             values.add(i < record.size() ? record.get(i) : "");
         }
-        return new CSVRecord(record.toMap(), values);
+        Map<String, Integer> headerIndexMap = new HashMap<>();
+        for (int i = 0; i < headerNames.size(); i++) {
+            headerIndexMap.put(headerNames.get(i), i);
+        }
+        return new CSVRecord(headerNames, headerIndexMap, Collections.emptyMap(), -1, -1, values);
     }
 
     private static int getIndexForHeader(String headerName, List<String> header) {

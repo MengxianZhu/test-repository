@@ -43,50 +43,90 @@ public class CSVProcessor {
 
     public static void processCSV(File inputFile, String destinationDir) {
         try (Reader reader = Files.newBufferedReader(Paths.get(inputFile.getPath()), StandardCharsets.UTF_8);
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader());
-             FileWriter writer = new FileWriter(destinationDir + File.separator + inputFile.getName());
-             CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
 
-            // Write header
+            // Get header names
             List<String> headerNames = new ArrayList<>(csvParser.getHeaderMap().keySet());
-            csvPrinter.printRecord(headerNames);
 
             // Process data rows
+            int colIndex = headerNames.indexOf("COL");
+            int expectedValue = 1;
+            Map<String, String> firstValues = new HashMap<>();
             for (CSVRecord record : csvParser) {
-                List<String> values = new ArrayList<>();
-                for (String header : headerNames) {
-                    String value = record.get(header);
-
-                    // Process specific headers
-                    switch (header.toUpperCase()) {
-                        case "FORMAT":
-                            value = "-".equals(value) ? "" : value;
-                            break;
-                        case "PRO":
-                            if (value.isEmpty() && !csvParser.getHeaderMap().containsKey("PRO")) {
-                                value = record.get("PRA");
-                            }
-                            break;
-                        case "CD":
-                        case "ISD":
-                            value = value.isEmpty() ? "N" : value;
-                            break;
-                        case "SOURCE":
-                            value = "NA".equals(value) || "--NA--".equals(value) ? "" : value;
-                            break;
-                        // Add additional header processing here if needed
-                    }
-
-                    values.add(value);
+                String colValue = record.get(colIndex);
+                switch (headerNames.get(colIndex).toUpperCase()) {
+                    case "COL":
+                        colValue = fixOrder(colValue, expectedValue);
+                        expectedValue++;
+                        break;
+                    case "FORMAT":
+                        colValue = "-".equals(colValue) ? "" : colValue;
+                        break;
+                    case "PRO":
+                        if (colValue.isEmpty() && !headerNames.contains("PRO")) {
+                            colValue = record.get("PRA");
+                        }
+                        break;
+                    case "CD":
+                    case "ISD":
+                        colValue = colValue.isEmpty() ? "N" : colValue;
+                        break;
+                    case "SOURCE":
+                        colValue = "NA".equals(colValue) || "--NA--".equals(colValue) ? "" : colValue;
+                        break;
+                    // Add additional header processing here if needed
+                    case "TABLE":
+                    case "PARTITION":
+                        if (!firstValues.containsKey(headerNames.get(colIndex))) {
+                            firstValues.put(headerNames.get(colIndex), colValue.toUpperCase());
+                        }
+                        break;
                 }
-                csvPrinter.printRecord(values);
             }
 
-            csvPrinter.flush();
+            // Generate new file name
+            String newFileName = "";
+            if (firstValues.containsKey("TABLE")) {
+                newFileName += firstValues.get("TABLE");
+            }
+            if (firstValues.containsKey("PARTITION")) {
+                if (!newFileName.isEmpty()) {
+                    newFileName += "_";
+                }
+                newFileName += firstValues.get("PARTITION");
+            }
+            newFileName += ".csv";
 
-            System.out.println("Processed: " + inputFile.getName());
+            // Write to new CSV file
+            try (FileWriter writer = new FileWriter(destinationDir + File.separator + newFileName);
+                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+
+                // Write header
+                csvPrinter.printRecord(headerNames);
+
+                // Process data rows again to print to the new CSV file
+                csvParser.forEach(record -> {
+                    try {
+                        csvPrinter.printRecord(record);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+
+            System.out.println("Processed: " + inputFile.getName() + " => " + newFileName);
         } catch (IOException | CsvValidationException e) {
             e.printStackTrace();
         }
+    }
+
+    private static String fixOrder(String value, int expectedValue) {
+        // Check if the value matches the expected order
+        int colValue = Integer.parseInt(value);
+        if (colValue != expectedValue) {
+            // If not, correct the value to match the expected order
+            value = Integer.toString(expectedValue);
+        }
+        return value;
     }
 }

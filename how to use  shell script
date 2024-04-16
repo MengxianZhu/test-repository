@@ -1,0 +1,104 @@
+# 创建 Excel 应用程序对象
+$excel = New-Object -ComObject Excel.Application
+
+# 显示 Excel 程序界面（可选）
+$excel.Visible = $true
+
+# 打开 Excel 文件
+$workbook = $excel.Workbooks.Open("C:\path\to\your\file.xlsx")
+
+# 获取第一个工作表
+$worksheet = $workbook.Sheets.Item(1)
+
+# 搜索和替换文本
+$searchText = "TextToSearch"
+$replaceText = "ReplacementText"
+$lookAt = -4163  # xlWhole，表示完全匹配
+$matchCase = $true
+
+$range = $worksheet.Cells.Find($searchText, $null, $lookAt, $matchCase)
+
+if ($range -ne $null) {
+    $firstAddress = $range.Address
+    do {
+        $range.Value2 = $range.Value2 -replace $searchText, $replaceText
+        $range = $worksheet.Cells.FindNext($range)
+    } while ($range -ne $null -and $range.Address -ne $firstAddress)
+}
+
+# 保存并关闭工作簿
+$workbook.Save()
+$workbook.Close()
+
+# 退出 Excel 应用程序
+$excel.Quit()
+
+# 释放 COM 对象
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+在这个脚本中：
+
+$searchText 变量是你要搜索的文本。
+$replaceText 变量是你要替换的文本。
+$lookAt 变量是搜索的方式，这里使用了完全匹配。
+$matchCase 变量是指定是否区分大小写。
+请确保将路径替换为你的实际文件路径，并根据你的需要修改搜索和替换的文本。这个脚本将会搜索并替换指定 Excel 文件中的文本，然后保存并关闭文件。
+
+User
+如果是一个目录下的所有xlsx文件都要处理呢
+ChatGPT
+如果要处理一个目录下的所有 .xlsx 文件，你可以编写 PowerShell 脚本来遍历该目录下的所有文件，并对每个文件执行搜索和替换操作。以下是一个示例脚本：
+
+powershell
+Copy code
+# 设置要搜索和替换的文本
+$searchText = "TextToSearch"
+$replaceText = "ReplacementText"
+$lookAt = -4163  # xlWhole，表示完全匹配
+$matchCase = $true
+
+# 获取目标目录下的所有 .xlsx 文件
+$files = Get-ChildItem -Path "C:\path\to\your\directory" -Filter *.xlsx
+
+# 创建 Excel 应用程序对象
+$excel = New-Object -ComObject Excel.Application
+
+# 显示 Excel 程序界面（可选）
+$excel.Visible = $true
+
+# 遍历每个文件
+foreach ($file in $files) {
+    Write-Host "Processing file: $($file.FullName)"
+
+    # 打开 Excel 文件
+    $workbook = $excel.Workbooks.Open($file.FullName)
+
+    # 获取第一个工作表
+    $worksheet = $workbook.Sheets.Item(1)
+
+    # 搜索和替换文本
+    $range = $worksheet.Cells.Find($searchText, $null, $lookAt, $matchCase)
+
+    if ($range -ne $null) {
+        $firstAddress = $range.Address
+        do {
+            $range.Value2 = $range.Value2 -replace $searchText, $replaceText
+            $range = $worksheet.Cells.FindNext($range)
+        } while ($range -ne $null -and $range.Address -ne $firstAddress)
+    }
+
+    # 保存并关闭工作簿
+    $workbook.Save()
+    $workbook.Close()
+}
+
+# 退出 Excel 应用程序
+$excel.Quit()
+
+# 释放 COM 对象
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+
+Write-Host "All files processed."

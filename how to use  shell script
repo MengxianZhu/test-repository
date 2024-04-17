@@ -110,6 +110,7 @@ Write-Host "All files processed."
 
 
 import java.io.*;
+import java.util.regex.*;
 
 public class ProcessSQLFiles {
     public static void main(String[] args) {
@@ -143,8 +144,15 @@ public class ProcessSQLFiles {
             String line;
             // 逐行读取输入文件内容
             while ((line = reader.readLine()) != null) {
-                // 替换以 "AA." 开头的表名
-                line = line.replaceAll("AA\\.(\\w+)", "AA_2024.$1");
+                // 匹配以 "AA." 开头的表名并添加后缀 "_2024"
+                Pattern pattern = Pattern.compile("(\\bAA\\.\\w+\\b)");
+                Matcher matcher = pattern.matcher(line);
+                StringBuffer buffer = new StringBuffer();
+                while (matcher.find()) {
+                    matcher.appendReplacement(buffer, matcher.group(1) + "_2024");
+                }
+                matcher.appendTail(buffer);
+                line = buffer.toString();
 
                 // 写入修改后的内容到输出文件
                 writer.write(line);

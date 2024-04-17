@@ -102,3 +102,56 @@ $excel.Quit()
 [System.GC]::WaitForPendingFinalizers()
 
 Write-Host "All files processed."
+
+
+
+
+
+
+
+import java.io.*;
+
+public class ProcessSQLFiles {
+    public static void main(String[] args) {
+        // 源目录和目标目录
+        File sourceDir = new File("source_directory_path");
+        File destDir = new File("destination_directory_path");
+
+        // 如果目标目录不存在，则创建
+        if (!destDir.exists()) {
+            destDir.mkdirs();
+        }
+
+        // 获取源目录下所有的文件
+        File[] files = sourceDir.listFiles();
+
+        // 遍历每个文件
+        for (File file : files) {
+            if (file.isFile() && file.getName().endsWith(".sql")) {
+                processSQLFile(file, destDir);
+            }
+        }
+    }
+
+    public static void processSQLFile(File inputFile, File outputDir) {
+        // 构造输出文件路径
+        File outputFile = new File(outputDir, inputFile.getName());
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+
+            String line;
+            // 逐行读取输入文件内容
+            while ((line = reader.readLine()) != null) {
+                // 替换以 "AA." 开头的表名
+                line = line.replaceAll("AA\\.(\\w+)", "AA_2024.$1");
+
+                // 写入修改后的内容到输出文件
+                writer.write(line);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}

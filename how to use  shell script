@@ -163,3 +163,30 @@ public class ProcessSQLFiles {
         }
     }
 }
+
+
+while ((line = reader.readLine()) != null) {
+    // 匹配以 "AA." 开头的表名并添加后缀 "_2024"
+    Pattern patternAA = Pattern.compile("\\bAA\\.(\\w+)\\b");
+    Matcher matcherAA = patternAA.matcher(line);
+    StringBuffer bufferAA = new StringBuffer();
+    while (matcherAA.find()) {
+        matcherAA.appendReplacement(bufferAA, "AA_2024.$1_2024");
+    }
+    matcherAA.appendTail(bufferAA);
+    
+    // 匹配以 "BB." 开头的表名并添加后缀 "_2024"
+    Pattern patternBB = Pattern.compile("\\bBB\\.(\\w+)\\b");
+    Matcher matcherBB = patternBB.matcher(bufferAA.toString());
+    StringBuffer bufferBB = new StringBuffer();
+    while (matcherBB.find()) {
+        matcherBB.appendReplacement(bufferBB, "BB_2024.$1_2024");
+    }
+    matcherBB.appendTail(bufferBB);
+    
+    line = bufferBB.toString();
+
+    // 写入修改后的内容到输出文件
+    writer.write(line);
+    writer.newLine();
+}

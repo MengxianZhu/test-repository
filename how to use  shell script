@@ -1,192 +1,37 @@
-# 创建 Excel 应用程序对象
-$excel = New-Object -ComObject Excel.Application
+ public static void main(String[] args) {
+        // 输入文件和输出文件路径
+        String inputFilePath = "input.csv";
+        String outputFilePath = "output.csv";
 
-# 显示 Excel 程序界面（可选）
-$excel.Visible = $true
+        // 创建输入流和输出流
+        try (InputStream inputStream = new FileInputStream(inputFilePath);
+             OutputStream outputStream = new FileOutputStream(outputFilePath);
+             InputStreamReader reader = new InputStreamReader(inputStream, "UTF-8");
+             OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8")) {
 
-# 打开 Excel 文件
-$workbook = $excel.Workbooks.Open("C:\path\to\your\file.xlsx")
+            // 创建 CSVParser 对象并解析 CSV 数据
+            CSVParser csvParser = CSVFormat.DEFAULT.parse(reader);
+            // 创建 CSVPrinter 对象用于写出 CSV 数据
+            CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);
 
-# 获取第一个工作表
-$worksheet = $workbook.Sheets.Item(1)
-
-# 搜索和替换文本
-$searchText = "TextToSearch"
-$replaceText = "ReplacementText"
-$lookAt = -4163  # xlWhole，表示完全匹配
-$matchCase = $true
-
-$range = $worksheet.Cells.Find($searchText, $null, $lookAt, $matchCase)
-
-if ($range -ne $null) {
-    $firstAddress = $range.Address
-    do {
-        $range.Value2 = $range.Value2 -replace $searchText, $replaceText
-        $range = $worksheet.Cells.FindNext($range)
-    } while ($range -ne $null -and $range.Address -ne $firstAddress)
-}
-
-# 保存并关闭工作簿
-$workbook.Save()
-$workbook.Close()
-
-# 退出 Excel 应用程序
-$excel.Quit()
-
-# 释放 COM 对象
-[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
-[System.GC]::Collect()
-[System.GC]::WaitForPendingFinalizers()
-在这个脚本中：
-
-$searchText 变量是你要搜索的文本。
-$replaceText 变量是你要替换的文本。
-$lookAt 变量是搜索的方式，这里使用了完全匹配。
-$matchCase 变量是指定是否区分大小写。
-请确保将路径替换为你的实际文件路径，并根据你的需要修改搜索和替换的文本。这个脚本将会搜索并替换指定 Excel 文件中的文本，然后保存并关闭文件。
-
-User
-如果是一个目录下的所有xlsx文件都要处理呢
-ChatGPT
-如果要处理一个目录下的所有 .xlsx 文件，你可以编写 PowerShell 脚本来遍历该目录下的所有文件，并对每个文件执行搜索和替换操作。以下是一个示例脚本：
-
-powershell
-Copy code
-# 设置要搜索和替换的文本
-$searchText = "TextToSearch"
-$replaceText = "ReplacementText"
-$lookAt = -4163  # xlWhole，表示完全匹配
-$matchCase = $true
-
-# 获取目标目录下的所有 .xlsx 文件
-$files = Get-ChildItem -Path "C:\path\to\your\directory" -Filter *.xlsx
-
-# 创建 Excel 应用程序对象
-$excel = New-Object -ComObject Excel.Application
-
-# 显示 Excel 程序界面（可选）
-$excel.Visible = $true
-
-# 遍历每个文件
-foreach ($file in $files) {
-    Write-Host "Processing file: $($file.FullName)"
-
-    # 打开 Excel 文件
-    $workbook = $excel.Workbooks.Open($file.FullName)
-
-    # 获取第一个工作表
-    $worksheet = $workbook.Sheets.Item(1)
-
-    # 搜索和替换文本
-    $range = $worksheet.Cells.Find($searchText, $null, $lookAt, $matchCase)
-
-    if ($range -ne $null) {
-        $firstAddress = $range.Address
-        do {
-            $range.Value2 = $range.Value2 -replace $searchText, $replaceText
-            $range = $worksheet.Cells.FindNext($range)
-        } while ($range -ne $null -and $range.Address -ne $firstAddress)
-    }
-
-    # 保存并关闭工作簿
-    $workbook.Save()
-    $workbook.Close()
-}
-
-# 退出 Excel 应用程序
-$excel.Quit()
-
-# 释放 COM 对象
-[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
-[System.GC]::Collect()
-[System.GC]::WaitForPendingFinalizers()
-
-Write-Host "All files processed."
-
-
-
-
-
-
-
-import java.io.*;
-import java.util.regex.*;
-
-public class ProcessSQLFiles {
-    public static void main(String[] args) {
-        // 源目录和目标目录
-        File sourceDir = new File("source_directory_path");
-        File destDir = new File("destination_directory_path");
-
-        // 如果目标目录不存在，则创建
-        if (!destDir.exists()) {
-            destDir.mkdirs();
-        }
-
-        // 获取源目录下所有的文件
-        File[] files = sourceDir.listFiles();
-
-        // 遍历每个文件
-        for (File file : files) {
-            if (file.isFile() && file.getName().endsWith(".sql")) {
-                processSQLFile(file, destDir);
+            // 遍历每条记录，并将处理后的数据写入到输出文件中
+            for (CSVRecord record : csvParser) {
+                // 在这里对 CSV 记录进行处理
+                // 这里只是示例，实际操作根据需求来
+                // 假设我们对每条记录的第一个字段进行处理，将其转换为大写
+                String processedValue = record.get(0).toUpperCase();
+                // 写入处理后的数据到输出文件中
+                csvPrinter.printRecord(processedValue, record.get(1), record.get(2)); // 以此类推，根据实际列数添加参数
             }
-        }
-    }
 
-    public static void processSQLFile(File inputFile, File outputDir) {
-        // 构造输出文件路径
-        File outputFile = new File(outputDir, inputFile.getName());
+            // 刷新 CSVPrinter 并关闭它
+            csvPrinter.flush();
+            csvPrinter.close();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
-             BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            System.out.println("处理完成。");
 
-            String line;
-            // 逐行读取输入文件内容
-            while ((line = reader.readLine()) != null) {
-                // 匹配以 "AA." 开头的表名并添加后缀 "_2024"
-                Pattern pattern = Pattern.compile("(\\bAA\\.\\w+\\b)");
-                Matcher matcher = pattern.matcher(line);
-                StringBuffer buffer = new StringBuffer();
-                while (matcher.find()) {
-                    matcher.appendReplacement(buffer, matcher.group(1) + "_2024");
-                }
-                matcher.appendTail(buffer);
-                line = buffer.toString();
-
-                // 写入修改后的内容到输出文件
-                writer.write(line);
-                writer.newLine();
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-}
-
-
-while ((line = reader.readLine()) != null) {
-    // 匹配以 "AA." 开头的表名并添加后缀 "_2024"
-    Pattern patternAA = Pattern.compile("\\bAA\\.(\\w+)\\b");
-    Matcher matcherAA = patternAA.matcher(line);
-    StringBuffer bufferAA = new StringBuffer();
-    while (matcherAA.find()) {
-        matcherAA.appendReplacement(bufferAA, "AA_2024.$1_2024");
-    }
-    matcherAA.appendTail(bufferAA);
-    
-    // 匹配以 "BB." 开头的表名并添加后缀 "_2024"
-    Pattern patternBB = Pattern.compile("\\bBB\\.(\\w+)\\b");
-    Matcher matcherBB = patternBB.matcher(bufferAA.toString());
-    StringBuffer bufferBB = new StringBuffer();
-    while (matcherBB.find()) {
-        matcherBB.appendReplacement(bufferBB, "BB_2024.$1_2024");
-    }
-    matcherBB.appendTail(bufferBB);
-    
-    line = bufferBB.toString();
-
-    // 写入修改后的内容到输出文件
-    writer.write(line);
-    writer.newLine();
 }

@@ -1,71 +1,88 @@
-mport java.util.*;
+import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class CsvProcessor {
-
-    // 静态方法：验证字段不为空
-    private static void validateNotEmpty(String header, Map<String, String> map, Consumer<String> errorHandler) {
+class CsvValidationUtils {
+    static void validateNotEmpty(String header, Map<String, String> map) {
         String value = map.get(header);
         if (value == null || value.trim().isEmpty()) {
-            errorHandler.accept(header + " cannot be empty");
+            handleValidationError(header);
         }
     }
 
-    // 静态方法：处理错误信息
-    private static void handleValidationError(String header, String value) {
-        System.out.println("Error: " + header + " has invalid value: " + value);
+    static void handleValidationError(String header) {
+        System.out.println("Error: " + header + " cannot be empty");
     }
 
-    // 定义枚举，每个枚举实例包含一个 header、验证函数和错误处理函数
-    public enum CsvFieldValidator {
-        NAME("name", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError),
-        AGE("age", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError),
-        SEX("sex", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError);
-
-        private final String header;
-        private final BiConsumer<String, Map<String, String>> validator;
-        private final BiConsumer<String, String> errorHandler;
-
-        CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, BiConsumer<String, String> errorHandler) {
-            this.header = header;
-            this.validator = validator;
-            this.errorHandler = errorHandler;
+    static void validateSex(String value) {
+        if (!value.equalsIgnoreCase("male") && !value.equalsIgnoreCase("female")) {
+            System.out.println("Error: Sex must be 'male' or 'female'");
         }
+    }
 
-        public void validate(Map<String, String> map) {
-            try {
-                String value = map.get(header);
-                validator.accept(header, map);
-            } catch (Exception e) {
-                e.printStackTrace(); // 处理异常
+    static void validateAge(String value) {
+        try {
+            int age = Integer.parseInt(value);
+            if (age < 0 || age > 110) {
+                System.out.println("Error: Age must be between 0 and 110");
             }
+        } catch (NumberFormatException e) {
+            System.out.println("Error: Invalid value for age: " + value);
+        }
+    }
+}
+
+public enum CsvFieldValidator {
+    NAME("name", CsvValidationUtils::validateNotEmpty, Function.identity()),
+    AGE("age", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateAge),
+    SEX("sex", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateSex);
+
+    private final String header;
+    private final BiConsumer<String, Map<String, String>> validator;
+    private final Function<String, String> valueValidator;
+
+    CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, Function<String, String> valueValidator) {
+        this.header = header;
+        this.validator = validator;
+        this.valueValidator = valueValidator;
+    }
+
+    public void validate(Map<String, String> map) {
+        try {
+            validator.accept(header, map);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public static Map<String, String> processCsvRecord(Map<String, String> csvRecord) {
-        Stream.of(CsvFieldValidator.values())
-                .forEach(validator -> validator.validate(csvRecord));
+    public void validateValue(String value) {
+        valueValidator.apply(value);
+    }
 
-        return Collections.emptyMap(); // 返回空的错误 map
+    public static BiConsumer<Map<String, String>, Map<String, String>> combinedValidator() {
+        return (map, errorMap) -> {
+            for (CsvFieldValidator fieldValidator : CsvFieldValidator.values()) {
+                fieldValidator.validate(map);
+                String header = fieldValidator.header;
+                fieldValidator.validateValue(map.get(header));
+            }
+        };
+    }
+}
+
+public class CsvProcessor {
+    public static void processCsvRecord(Map<String, String> csvRecord) {
+        BiConsumer<Map<String, String>, Map<String, String>> combinedValidator = CsvFieldValidator.combinedValidator();
+        combinedValidator.accept(csvRecord, null);
     }
 
     public static void main(String[] args) {
-        // 示例 CSV 记录
         Map<String, String> csvRecord = new HashMap<>();
         csvRecord.put("name", "John");
-        csvRecord.put("age", "NA");
-        csvRecord.put("sex", "M");
+        csvRecord.put("age", "25");
+        csvRecord.put("sex", "male");
 
-        // 处理 CSV 记录
-        Map<String, String> errors = processCsvRecord(csvRecord);
-
-        // 输出错误信息
-        if (errors.isEmpty()) {
-            System.out.println("All fields are valid.");
-        } else {
-            errors.forEach((k, v) -> System.out.println(k + ": " + v));
-        }
+        processCsvRecord(csvRecord);
     }
 }

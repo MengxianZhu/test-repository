@@ -15,34 +15,38 @@ class CsvValidationUtils {
         System.out.println("Error: " + header + " cannot be empty");
     }
 
-    static void validateSex(String value) {
+    static void validateSex(String header, Map<String, String> map) {
+        String value = map.get(header);
         if (!value.equalsIgnoreCase("male") && !value.equalsIgnoreCase("female")) {
             System.out.println("Error: Sex must be 'male' or 'female'");
         }
     }
 
-    static void validateAge(String value) {
-        try {
-            int age = Integer.parseInt(value);
-            if (age < 0 || age > 110) {
-                System.out.println("Error: Age must be between 0 and 110");
+    static BiConsumer<String, Map<String, String>> validateAge() {
+        return (header, map) -> {
+            String value = map.get(header);
+            try {
+                int age = Integer.parseInt(value);
+                if (age < 0 || age > 110) {
+                    System.out.println("Error: Age must be between 0 and 110");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Invalid value for age: " + value);
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Error: Invalid value for age: " + value);
-        }
+        };
     }
 }
 
 public enum CsvFieldValidator {
     NAME("name", CsvValidationUtils::validateNotEmpty, Function.identity()),
-    AGE("age", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateAge),
-    SEX("sex", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateSex);
+    AGE("age", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateAge()),
+    SEX("sex", CsvValidationUtils::validateSex, CsvValidationUtils::validateSex);
 
     private final String header;
     private final BiConsumer<String, Map<String, String>> validator;
-    private final Function<String, String> valueValidator;
+    private final BiConsumer<String, Map<String, String>> valueValidator;
 
-    CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, Function<String, String> valueValidator) {
+    CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, BiConsumer<String, Map<String, String>> valueValidator) {
         this.header = header;
         this.validator = validator;
         this.valueValidator = valueValidator;
@@ -56,16 +60,15 @@ public enum CsvFieldValidator {
         }
     }
 
-    public void validateValue(String value) {
-        valueValidator.apply(value);
+    public void validateValue(Map<String, String> map) {
+        valueValidator.accept(header, map);
     }
 
     public static BiConsumer<Map<String, String>, Map<String, String>> combinedValidator() {
         return (map, errorMap) -> {
             for (CsvFieldValidator fieldValidator : CsvFieldValidator.values()) {
                 fieldValidator.validate(map);
-                String header = fieldValidator.header;
-                fieldValidator.validateValue(map.get(header));
+                fieldValidator.validateValue(map);
             }
         };
     }

@@ -1,37 +1,71 @@
- public static void main(String[] args) {
-        // 输入文件和输出文件路径
-        String inputFilePath = "input.csv";
-        String outputFilePath = "output.csv";
+mport java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-        // 创建输入流和输出流
-        try (InputStream inputStream = new FileInputStream(inputFilePath);
-             OutputStream outputStream = new FileOutputStream(outputFilePath);
-             InputStreamReader reader = new InputStreamReader(inputStream, "UTF-8");
-             OutputStreamWriter writer = new OutputStreamWriter(outputStream, "UTF-8")) {
+public class CsvProcessor {
 
-            // 创建 CSVParser 对象并解析 CSV 数据
-            CSVParser csvParser = CSVFormat.DEFAULT.parse(reader);
-            // 创建 CSVPrinter 对象用于写出 CSV 数据
-            CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT);
+    // 静态方法：验证字段不为空
+    private static void validateNotEmpty(String header, Map<String, String> map, Consumer<String> errorHandler) {
+        String value = map.get(header);
+        if (value == null || value.trim().isEmpty()) {
+            errorHandler.accept(header + " cannot be empty");
+        }
+    }
 
-            // 遍历每条记录，并将处理后的数据写入到输出文件中
-            for (CSVRecord record : csvParser) {
-                // 在这里对 CSV 记录进行处理
-                // 这里只是示例，实际操作根据需求来
-                // 假设我们对每条记录的第一个字段进行处理，将其转换为大写
-                String processedValue = record.get(0).toUpperCase();
-                // 写入处理后的数据到输出文件中
-                csvPrinter.printRecord(processedValue, record.get(1), record.get(2)); // 以此类推，根据实际列数添加参数
+    // 静态方法：处理错误信息
+    private static void handleValidationError(String header, String value) {
+        System.out.println("Error: " + header + " has invalid value: " + value);
+    }
+
+    // 定义枚举，每个枚举实例包含一个 header、验证函数和错误处理函数
+    public enum CsvFieldValidator {
+        NAME("name", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError),
+        AGE("age", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError),
+        SEX("sex", CsvProcessor::validateNotEmpty, CsvProcessor::handleValidationError);
+
+        private final String header;
+        private final BiConsumer<String, Map<String, String>> validator;
+        private final BiConsumer<String, String> errorHandler;
+
+        CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, BiConsumer<String, String> errorHandler) {
+            this.header = header;
+            this.validator = validator;
+            this.errorHandler = errorHandler;
+        }
+
+        public void validate(Map<String, String> map) {
+            try {
+                String value = map.get(header);
+                validator.accept(header, map);
+            } catch (Exception e) {
+                e.printStackTrace(); // 处理异常
             }
+        }
+    }
 
-            // 刷新 CSVPrinter 并关闭它
-            csvPrinter.flush();
-            csvPrinter.close();
+    public static Map<String, String> processCsvRecord(Map<String, String> csvRecord) {
+        Stream.of(CsvFieldValidator.values())
+                .forEach(validator -> validator.validate(csvRecord));
 
-            System.out.println("处理完成。");
+        return Collections.emptyMap(); // 返回空的错误 map
+    }
 
-        } catch (IOException e) {
-            e.printStackTrace();
+    public static void main(String[] args) {
+        // 示例 CSV 记录
+        Map<String, String> csvRecord = new HashMap<>();
+        csvRecord.put("name", "John");
+        csvRecord.put("age", "NA");
+        csvRecord.put("sex", "M");
+
+        // 处理 CSV 记录
+        Map<String, String> errors = processCsvRecord(csvRecord);
+
+        // 输出错误信息
+        if (errors.isEmpty()) {
+            System.out.println("All fields are valid.");
+        } else {
+            errors.forEach((k, v) -> System.out.println(k + ": " + v));
         }
     }
 }

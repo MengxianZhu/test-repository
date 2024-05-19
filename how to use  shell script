@@ -163,4 +163,11 @@ public class CsvProcessor {
                 .reduce(BiConsumer::andThen)
                 .orElse((map, errMap) -> {});
     }
+
+
+BiConsumer<Map<String, Object>, Map<String, Object>> validateNotEmptyConsumer = (record, errMap) -> {
+    for (CsvFieldValidator validator : CsvFieldValidator.values()) {
+        CsvValidationUtils.validateNotEmpty(validator.header, record);
+    }
+};
 说明

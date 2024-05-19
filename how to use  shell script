@@ -1,91 +1,140 @@
-import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Stream;
+CsvValidationUtils.java
+java
+复制代码
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
 
 class CsvValidationUtils {
-    static void validateNotEmpty(String header, Map<String, String> map) {
-        String value = map.get(header);
-        if (value == null || value.trim().isEmpty()) {
-            handleValidationError(header);
+    private static final Logger logger = LoggerFactory.getLogger(CsvValidationUtils.class);
+
+    static Object getValue(String header, Map<String, Object> map) {
+        return map.get(header);
+    }
+
+    static void validateNotEmpty(String header, Map<String, Object> map) {
+        Object value = getValue(header, map);
+        if (value == null || value.toString().trim().isEmpty()) {
+            handleValidationError(header + " cannot be empty", map);
         }
     }
 
-    static void handleValidationError(String header) {
-        System.out.println("Error: " + header + " cannot be empty");
-    }
-
-    static void validateSex(String header, Map<String, String> map) {
-        String value = map.get(header);
-        if (!value.equalsIgnoreCase("male") && !value.equalsIgnoreCase("female")) {
-            System.out.println("Error: Sex must be 'male' or 'female'");
+    static void validateValueInList(String header, Map<String, Object> map, List<String> validValues) {
+        Object value = getValue(header, map);
+        if (value != null && !validValues.contains(value.toString())) {
+            handleValidationError("Invalid value for " + header + ": " + value + ". Allowed values are: " + validValues, map);
         }
     }
 
-    static BiConsumer<String, Map<String, String>> validateAge() {
-        return (header, map) -> {
-            String value = map.get(header);
-            try {
-                int age = Integer.parseInt(value);
-                if (age < 0 || age > 110) {
-                    System.out.println("Error: Age must be between 0 and 110");
-                }
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Invalid value for age: " + value);
-            }
-        };
+    static void validateValueWithRegex(String header, Map<String, Object> map, String regex) {
+        Object value = getValue(header, map);
+        if (value != null && !value.toString().matches(regex)) {
+            handleValidationError("Invalid value for " + header + ": " + value + ". Value must match regex: " + regex, map);
+        }
+    }
+
+    static void validateColOrder(String header, Map<String, Object> map) {
+        int rowNumber = (int) map.get("Row Number");
+        int colOrder = (int) getValue(header, map);
+        if (rowNumber != colOrder) {
+            handleValidationError("Invalid col order at row " + rowNumber + ": expected " + rowNumber, map);
+        }
+    }
+
+    static void handleValidationError(String errorMessage, Map<String, Object> map) {
+        int colOrder = (int) getValue("col order", map);
+        logger.error("Error: " + errorMessage + " at col order " + colOrder);
+    }
+
+    static void addRowNumbers(List<Map<String, Object>> records) {
+        int rowNumber = 1;
+        for (Map<String, Object> record : records) {
+            record.put("Row Number", rowNumber++);
+        }
     }
 }
+CsvFieldValidator.java
+java
+复制代码
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 public enum CsvFieldValidator {
-    NAME("name", CsvValidationUtils::validateNotEmpty, Function.identity()),
-    AGE("age", CsvValidationUtils::validateNotEmpty, CsvValidationUtils::validateAge()),
-    SEX("sex", CsvValidationUtils::validateSex, CsvValidationUtils::validateSex);
+    NAME("name", CsvValidationUtils::validateNotEmpty),
+    AGE("age", CsvValidationUtils::validateNotEmpty, (header, map) -> CsvValidationUtils.validateValueWithRegex(header, map, "^\\d+$")),
+    SEX("sex", CsvValidationUtils::validateNotEmpty, (header, map) -> CsvValidationUtils.validateValueInList(header, map, List.of("male", "female"))),
+    COL_ORDER("col order", CsvValidationUtils::validateColOrder);
 
     private final String header;
-    private final BiConsumer<String, Map<String, String>> validator;
-    private final BiConsumer<String, Map<String, String>> valueValidator;
+    private final BiConsumer<String, Map<String, Object>>[] validators;
 
-    CsvFieldValidator(String header, BiConsumer<String, Map<String, String>> validator, BiConsumer<String, Map<String, String>> valueValidator) {
+    CsvFieldValidator(String header, BiConsumer<String, Map<String, Object>>... validators) {
         this.header = header;
-        this.validator = validator;
-        this.valueValidator = valueValidator;
+        this.validators = validators;
     }
 
-    public void validate(Map<String, String> map) {
-        try {
-            validator.accept(header, map);
-        } catch (Exception e) {
-            e.printStackTrace();
+    public void validate(List<Map<String, Object>> records) {
+        for (Map<String, Object> record : records) {
+            for (BiConsumer<String, Map<String, Object>> validator : validators) {
+                validator.accept(header, record);
+            }
         }
     }
 
-    public void validateValue(Map<String, String> map) {
-        valueValidator.accept(header, map);
-    }
-
-    public static BiConsumer<Map<String, String>, Map<String, String>> combinedValidator() {
-        return (map, errorMap) -> {
-            for (CsvFieldValidator fieldValidator : CsvFieldValidator.values()) {
-                fieldValidator.validate(map);
-                fieldValidator.validateValue(map);
-            }
-        };
+    public static void addRowNumbers(List<Map<String, Object>> records) {
+        int rowNumber = 1;
+        for (Map<String, Object> record : records) {
+            record.put("Row Number", rowNumber++);
+        }
     }
 }
+CsvProcessor.java
+java
+复制代码
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class CsvProcessor {
-    public static void processCsvRecord(Map<String, String> csvRecord) {
-        BiConsumer<Map<String, String>, Map<String, String>> combinedValidator = CsvFieldValidator.combinedValidator();
-        combinedValidator.accept(csvRecord, null);
+    public static void main(String[] args) {
+        // Parse CSV and obtain records
+        List<Map<String, Object>> records = parseCsv("example.csv");https://github.com/MengxianZhu/test-repository/blob/main/how%20to%20use%20%20shell%20script
+
+        // Add row numbers to records
+        CsvFieldValidator.addRowNumbers(records);
+
+        // Validate all fields
+        for (CsvFieldValidator validator : CsvFieldValidator.values()) {
+            validator.validate(records);
+        }
     }
 
-    public static void main(String[] args) {
-        Map<String, String> csvRecord = new HashMap<>();
-        csvRecord.put("name", "John");
-        csvRecord.put("age", "25");
-        csvRecord.put("sex", "male");
+    private static List<Map<String, Object>> parseCsv(String filename) {
+        // Parse CSV file and return records
+        // Dummy implementation, replace with actual CSV parsing logic
+        List<Map<String, Object>> records = new ArrayList<>();
+        // Example of parsing CSV and adding records
+        Map<String, Object> record1 = Map.of(
+                "name", "John",
+                "age", 30,
+                "sex", "Male",
+                "col order", 1
+        );
+        records.add(record1);
 
-        processCsvRecord(csvRecord);
+        Map<String, Object> record2 = Map.of(
+                "name", "Alice",
+                "age", 25,
+                "sex", "Female",
+                "col order", 2
+        );
+        records.add(record2);
+
+        // Add more records...
+
+        return records;
     }
 }

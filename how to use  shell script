@@ -151,4 +151,16 @@ public class CsvProcessor {
         return records;
     }
 }
+
+
+
+  public static BiConsumer<Map<String, Object>, Map<String, Object>> combinedValidator() {
+        return Stream.of(CsvFieldValidator.values())
+                .flatMap(validator -> Stream.of(
+                        (BiConsumer<Map<String, Object>, Map<String, Object>>) (map, errMap) -> validator.validateNotEmpty(map),
+                        (BiConsumer<Map<String, Object>, Map<String, Object>>) (map, errMap) -> validator.validator.accept(validator.header, map)
+                ))
+                .reduce(BiConsumer::andThen)
+                .orElse((map, errMap) -> {});
+    }
 说明

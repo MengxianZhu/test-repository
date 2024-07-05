@@ -1,0 +1,15 @@
+function Get-FolderSize {
+    param (
+        [string]$path
+    )
+    $size = 0
+    $items = Get-ChildItem -Path $path -Recurse -File
+    foreach ($item in $items) {
+        $size += $item.Length
+    }
+    return $size
+}
+
+$folderPath = "C:\Your\Directory\Path"
+$folderSize = Get-FolderSize -path $folderPath
+Write-Output ("Folder Size: {0:N2} MB" -f ($folderSize / 1MB))

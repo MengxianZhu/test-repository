@@ -19,7 +19,6 @@
         </execution>
     </executions>
 </plugin>
-
 User
 我要扫描一个目录下的所有csv，每个csv我需要检查处理后生成新目录下同名的csv，处理如下都有format， PRO 或者PRA ， CD,  IsD， Source这几个header， 对于format的值，如果是-需要替换成空值，PRO 或者PRA是为了兼容， 实际上PRO才是我们需要的header， 在新目录下的csv中我们起名字PRO，但是值要从旧的csv中拿，有PRO就拿PRO的，没有PRO就拿PRA的值，  对于PRO 或者PRA ， CD,  IsD, 这三个header的值只能是Y或者N,空值处理成N,对于source， 如果值为NA或者--NA--，处理替换成空值，但是注意这里不要把其他类似于nation这样的值也处理了。请给我这样一份代码
 ChatGPT

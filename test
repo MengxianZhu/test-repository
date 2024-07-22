@@ -1,0 +1,21 @@
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-antrun-plugin</artifactId>
+    <version>1.8</version>
+    <executions>
+        <execution>
+            <phase>generate-sources</phase> <!-- 在生成源代码阶段运行 -->
+            <goals>
+                <goal>run</goal>
+            </goals>
+            <configuration>
+                <target>
+                    <!-- 处理主源文件目录 -->
+                    <fixcrlf srcdir="src/main/groovy" includes="**/*.groovy" eol="lf"/>
+                    <!-- 处理测试源文件目录 -->
+                    <fixcrlf srcdir="src/test/groovy" includes="**/*.groovy" eol="lf"/>
+                </target>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
